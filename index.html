@@ -622,6 +622,16 @@
         <div class="auto-play-toggle on" id="keep-awake-toggle" onclick="toggleKeepAwake()"></div>
         <span style="font-size:11px;color:var(--color-text-secondary)">关屏后继续发音</span>
       </div>
+      <div style="margin-bottom:16px;color:var(--color-text-secondary);font-size:13px;display:flex;flex-direction:column;align-items:center;gap:6px">
+        <div>
+          <span>英文发音：</span>
+          <select id="sleep-en-voice" style="font-size:12px;font-family:var(--font-sans);padding:3px 6px;border:0.5px solid var(--color-border-tertiary);border-radius:6px;background:var(--color-background-primary);color:var(--color-text-primary);max-width:200px"></select>
+        </div>
+        <div>
+          <span>中文发音：</span>
+          <select id="sleep-zh-voice" style="font-size:12px;font-family:var(--font-sans);padding:3px 6px;border:0.5px solid var(--color-border-tertiary);border-radius:6px;background:var(--color-background-primary);color:var(--color-text-primary);max-width:200px"></select>
+        </div>
+      </div>
       <button class="start-btn" id="sleep-start-btn" onclick="beginSleep()">开始播放</button>
     </div>
     <div id="sleep-playing" class="hidden" style="text-align:center;padding:20px 0">
@@ -642,6 +652,9 @@
     </div>
   </div>
 </div>
+
+<!-- 隐藏 audio 用于熄屏续播 -->
+<audio id="sleep-audio" preload="auto" style="display:none"></audio>
 
 <script>
 const WORDS = {
@@ -679,93 +692,51 @@ let state = {
 let currentFlashWord = '';
 let currentSpellWord = '';
 let sleepTimer = null;
-let sleepState = { group: 0, idx: 0, loop: 0, repeat: 0, running: false, paused: false };
+let sleepState = { group: 0, idx: 0, loop: 0, repeat: 0, running: false, paused: false, phase: 'pause' };
+let sleepAudio = null;
 let synth = null;
-let keepAwakeCtx = null;  // Web Audio API 无声 loop，保持屏幕关闭时继续播放
-let keepAwakeEnabled = true;
 
-// ======= KEEP AWAKE (手机熄屏继续播放) =======
-function initKeepAwake() {
-  // 在用户交互时调用（iOS 需要 user gesture 才能创建 AudioContext）
+// ======= SLEEP MODE AUDIO (熄屏续播用 TTS Server) =======
+let sleepVoices = { en: {}, zh: {} };
+let sleepAudioEl = null;
+
+function getSleepAudio() {
+  if (!sleepAudioEl) {
+    sleepAudioEl = document.getElementById('sleep-audio');
+  }
+  return sleepAudioEl;
+}
+
+async function loadSleepVoices() {
   try {
-    if (keepAwakeCtx) return;
-    const AC = window.AudioContext || window.webkitAudioContext;
-    if (!AC) { keepAwakeEnabled = false; return; }
-    keepAwakeCtx = new AC();
-  } catch(e) { keepAwakeEnabled = false; }
+    const r = await fetch('/voices');
+    const data = await r.json();
+    sleepVoices = data;
+    const enSel = document.getElementById('sleep-en-voice');
+    const zhSel = document.getElementById('sleep-zh-voice');
+    enSel.innerHTML = Object.entries(data.en).map(([k,v]) => `<option value="${k}"${k==='en-US-SteffanNeural'?' selected':''}>${v}</option>`).join('');
+    zhSel.innerHTML = Object.entries(data.zh).map(([k,v]) => `<option value="${k}"${k==='zh-CN-XiaoxiaoNeural'?' selected':''}>${v}</option>`).join('');
+  } catch(e) { /* fallback */ }
 }
 
-function startKeepAwake() {
-  if (!keepAwakeCtx || !keepAwakeEnabled) return;
-  // 恢复可能被浏览器暂停的 AudioContext
-  if (keepAwakeCtx.state === 'suspended') {
-    keepAwakeCtx.resume();
-  }
-}
-
-function stopKeepAwake() {
-  if (!keepAwakeCtx) return;
-  if (keepAwakeCtx.state !== 'closed') {
-    keepAwakeCtx.suspend();
-  }
-}
-
-// ======= MEDIA SESSION (锁屏控制) =======
-function setupMediaSession() {
-  if (!('mediaSession' in navigator)) return;
-  // 提供一个很小的音频元素用于锁屏控制
-  let audioEl = document.getElementById('bg-audio');
-  if (!audioEl) {
-    audioEl = document.createElement('audio');
-    audioEl.id = 'bg-audio';
-    audioEl.loop = true;
-    audioEl.volume = 0.01;  // 几乎无声
-    // 生成一段极短的白噪音脉冲让 Audio Element 保持活跃
-    try {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      const sr = ctx.sampleRate;
-      const len = sr * 0.25; // 250ms silent buffer
-      const buf = ctx.createBuffer(1, len, sr);
-      // 填充一个非常微弱的脉冲（-60dB）
-      const data = buf.getChannelData(0);
-      for (let i = 0; i < len; i++) {
-        data[i] = Math.sin(2 * Math.PI * 55 * i / sr) * 0.0001;
-      }
-      const src = ctx.createBufferSource();
-      src.buffer = buf;
-      src.connect(ctx.destination);
-      src.start();
-      // 循环播放无声 buffer 使 AudioContext 不自动挂起
-      function loopSilence() {
-        const s = ctx.createBufferSource();
-        s.buffer = buf;
-        s.connect(ctx.destination);
-        s.onended = loopSilence;
-        s.start();
-      }
-      loopSilence();
-      keepAwakeCtx = ctx;
-      keepAwakeEnabled = true;
-    } catch(e) { /* fallback */ }
-  }
-  // 锁屏控制
-  navigator.mediaSession.metadata = new MediaMetadata({
-    title: 'Ogden 850',
-    artist: '睡眠聆听',
-    album: 'Ogden Basic English'
+function sleepPlayAudio(text, voice, onEnd) {
+  const audio = getSleepAudio();
+  if (!audio) { if (onEnd) onEnd(); return; }
+  audio.onended = null;
+  audio.onerror = () => { if (onEnd) onEnd(); };
+  const url = `/tts?text=${encodeURIComponent(text)}&voice=${encodeURIComponent(voice)}`;
+  audio.src = url;
+  audio.play().catch(() => {
+    // 自动播放被拦截时用 speechSynthesis 降级
+    if (synth) {
+      const utt = new SpeechSynthesisUtterance(text);
+      utt.lang = voice.startsWith('zh') ? 'zh-CN' : 'en-US';
+      utt.rate = 0.7;
+      if (onEnd) utt.onend = onEnd;
+      synth.speak(utt);
+    } else if (onEnd) onEnd();
   });
-  navigator.mediaSession.setActionHandler('pause', () => sleepPause());
-  navigator.mediaSession.setActionHandler('play', () => { if (sleepState.paused) sleepPause(); });
-  navigator.mediaSession.setActionHandler('stop', () => sleepStop());
-}
-
-function updateMediaSession(wordText) {
-  if (!('mediaSession' in navigator)) return;
-  navigator.mediaSession.metadata = new MediaMetadata({
-    title: wordText || 'Ogden 850',
-    artist: '睡眠聆听',
-    album: 'Ogden Basic English'
-  });
+  audio.onended = onEnd;
 }
 
 // ======= TTS ENGINE =======
@@ -869,14 +840,8 @@ function closeSidebar() {
   document.getElementById('sidebar-overlay').classList.remove('open');
 }
 function toggleKeepAwake() {
-  keepAwakeEnabled = !keepAwakeEnabled;
   const el = document.getElementById('keep-awake-toggle');
-  el.classList.toggle('on', keepAwakeEnabled);
-  if (!keepAwakeEnabled) {
-    stopKeepAwake();
-  } else if (sleepState.running) {
-    startKeepAwake();
-  }
+  el.classList.toggle('on');
 }
 
 function playLabelChange() {
@@ -1284,17 +1249,19 @@ function beginSleep() {
   sleepState.repeat = 0;
   sleepState.running = true;
   sleepState.paused = false;
+  sleepState.phase = 'zh';
   const g = SLEEP_GROUPS[sleepState.group];
   const loops = parseInt(document.getElementById('sleep-loops').value) || 9999;
   document.getElementById('sleep-start').classList.add('hidden');
   document.getElementById('sleep-playing').classList.remove('hidden');
   document.getElementById('sleep-total-words').textContent = g.length;
   document.getElementById('sleep-total-loops').textContent = loops === 9999 ? '∞' : loops;
-  // 初始化熄屏续播
-  if (keepAwakeEnabled) {
-    initKeepAwake();
-    setupMediaSession();
-    startKeepAwake();
+  // 更新锁屏控制
+  if ('mediaSession' in navigator) {
+    navigator.mediaSession.metadata = new MediaMetadata({ title: 'Ogden 850', artist: '睡眠聆听' });
+    navigator.mediaSession.setActionHandler('pause', () => sleepPause());
+    navigator.mediaSession.setActionHandler('play', () => { if (sleepState.paused) sleepPause(); });
+    navigator.mediaSession.setActionHandler('stop', () => sleepStop());
   }
   sleepNextWord();
 }
@@ -1315,35 +1282,39 @@ function sleepNextWord() {
   document.getElementById('sleep-word').textContent = w.w;
   document.getElementById('sleep-meaning').textContent = w.m;
   document.getElementById('sleep-cur-word').textContent = sleepState.idx + 1;
-  updateMediaSession(w.w + ' — ' + w.m);
+  if ('mediaSession' in navigator) {
+    navigator.mediaSession.metadata = new MediaMetadata({ title: w.w + ' — ' + w.m, artist: 'Ogden 850' });
+  }
   sleepPlayRep();
 }
 
 function sleepPlayRep() {
   if (!sleepState.running || sleepState.paused) return;
   const w = SLEEP_GROUPS[sleepState.group][sleepState.idx];
-  // 先读中文，再读英文
-  speakWord(w.m, () => {
+  const enVoice = document.getElementById('sleep-en-voice').value || 'en-US-SteffanNeural';
+  const zhVoice = document.getElementById('sleep-zh-voice').value || 'zh-CN-XiaoxiaoNeural';
+  // 先读中文，再读英文 —— 用 TTS Server audio 实现 iOS 熄屏续播
+  sleepPlayAudio(w.m, zhVoice, () => {
     if (!sleepState.running || sleepState.paused) return;
-    speakWord(w.w, () => {
+    sleepPlayAudio(w.w, enVoice, () => {
       if (!sleepState.running || sleepState.paused) return;
       sleepState.repeat++;
       if (sleepState.repeat < 3) {
         sleepPlayRep();
       } else {
-        // 3 遍读完，间隔后下一个词
         const interval = parseInt(document.getElementById('sleep-interval').value) * 1000;
         sleepTimer = setTimeout(() => { sleepState.idx++; sleepNextWord(); }, interval);
       }
     });
-  }, 'zh');  // 中文发音
+  });
 }
 
 function sleepPause() {
   sleepState.paused = !sleepState.paused;
   const btn = document.getElementById('sleep-pause-btn');
+  const audio = document.getElementById('sleep-audio');
   if (sleepState.paused) {
-    synth.cancel();
+    audio.pause();
     clearTimeout(sleepTimer);
     btn.innerHTML = '<i class="ti ti-player-play" aria-hidden="true"></i> 继续';
   } else {
@@ -1356,8 +1327,8 @@ function sleepStop() {
   sleepState.running = false;
   sleepState.paused = false;
   clearTimeout(sleepTimer);
-  synth.cancel();
-  stopKeepAwake();
+  const audio = document.getElementById('sleep-audio');
+  if (audio) { audio.pause(); audio.src = ''; }
   document.getElementById('sleep-playing').classList.add('hidden');
   document.getElementById('sleep-start').classList.remove('hidden');
 }
@@ -1368,5 +1339,6 @@ buildCatGrid();
 updateStats();
 initTTS();
 buildSleepGroups();
+loadSleepVoices();
 </script>
 </body></html>
