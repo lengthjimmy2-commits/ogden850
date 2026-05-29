@@ -809,6 +809,7 @@ function rebuildSleepGroups() {
   for (let i = 0; i < 10; i++) {
     SLEEP_GROUPS.push(pool.slice(i * SIZE, (i + 1) * SIZE));
   }
+  buildSleepGroups(); // 刷新 UI 按钮
 }
 
 function updateProfileUI() {
