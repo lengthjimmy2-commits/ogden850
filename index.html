@@ -1140,7 +1140,7 @@ function showListen() {
   }
 }
 
-// 拼读分段 — 按声母韵母交替拆词，字母本身转色
+// 拼读分段 — 色塊 + 間距，一睇就知點拼
 function renderPhonics(word) {
   const vowels = new Set(['a','e','i','o','u']);
   const colors = ['#D4815A','#5C8A7A','#C9A96E','#81A684'];
@@ -1159,9 +1159,12 @@ function renderPhonics(word) {
     }
   }
   if (cur) segs.push(cur);
-  return segs.map((s, i) =>
-    `<span style="color:${colors[i % colors.length]}">${s}</span>`
-  ).join('');
+  return segs.map((s, i) => {
+    const first = s[0];
+    const rest = s.slice(1);
+    return `<span style="color:${colors[i % colors.length]}">` +
+      `<span style="font-size:1.2em;font-weight:700">${first}</span>${rest}</span>`;
+  }).join('<span style="display:inline-block;width:4px"></span>');
 }
 
 function listenRate(r) {
