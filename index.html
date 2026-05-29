@@ -1140,7 +1140,7 @@ function showListen() {
   }
 }
 
-// 拼读分段 — 按声母韵母交替拆词
+// 拼读分段 — 按声母韵母交替拆词，字母本身转色
 function renderPhonics(word) {
   const vowels = new Set(['a','e','i','o','u']);
   const colors = ['#D4815A','#5C8A7A','#C9A96E','#81A684'];
@@ -1150,7 +1150,6 @@ function renderPhonics(word) {
   for (let i = 1; i < word.length; i++) {
     const ch = word[i].toLowerCase();
     const isVowel = vowels.has(ch);
-    // 遇到连续辅音中间的元音或元音后的辅音才切
     if (isVowel !== curIsVowel) {
       segs.push(cur);
       cur = word[i];
@@ -1161,7 +1160,7 @@ function renderPhonics(word) {
   }
   if (cur) segs.push(cur);
   return segs.map((s, i) =>
-    `<span style="border-bottom:3px solid ${colors[i % colors.length]};padding-bottom:2px">${s}</span>`
+    `<span style="color:${colors[i % colors.length]}">${s}</span>`
   ).join('');
 }
 
