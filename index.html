@@ -1132,13 +1132,37 @@ function showListen() {
   document.getElementById('l-progress').style.width = (state.listenIdx/total*100) + '%';
   document.getElementById('l-num').textContent = (state.listenIdx+1) + ' / ' + total;
   document.getElementById('l-cat').textContent = WORDS[q.cat]?.label || q.cat;
-  document.getElementById('l-word').textContent = q.w;
+  document.getElementById('l-word').innerHTML = renderPhonics(q.w);
   document.getElementById('l-meaning').textContent = q.m;
-  // Simple pronunciation hint using letter patterns
   document.getElementById('l-phonetic').textContent = '';
   if (state.autoPlay) {
     setTimeout(() => speakWord(q.w), 300);
   }
+}
+
+// 拼读分段 — 按声母韵母交替拆词
+function renderPhonics(word) {
+  const vowels = new Set(['a','e','i','o','u']);
+  const colors = ['#D4815A','#5C8A7A','#C9A96E','#81A684'];
+  const segs = [];
+  let cur = word[0] || '';
+  let curIsVowel = vowels.has(word[0]?.toLowerCase());
+  for (let i = 1; i < word.length; i++) {
+    const ch = word[i].toLowerCase();
+    const isVowel = vowels.has(ch);
+    // 遇到连续辅音中间的元音或元音后的辅音才切
+    if (isVowel !== curIsVowel) {
+      segs.push(cur);
+      cur = word[i];
+      curIsVowel = isVowel;
+    } else {
+      cur += word[i];
+    }
+  }
+  if (cur) segs.push(cur);
+  return segs.map((s, i) =>
+    `<span style="border-bottom:3px solid ${colors[i % colors.length]};padding-bottom:2px">${s}</span>`
+  ).join('');
 }
 
 function listenRate(r) {
