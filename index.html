@@ -44,6 +44,8 @@
   .stats-bar { display: flex; gap: 16px; padding: 10px 20px; background: var(--color-background-secondary); border-bottom: 0.5px solid var(--color-border-tertiary); font-size: 13px; align-items: center; }
   .stat { display: flex; align-items: center; gap: 6px; color: var(--color-text-secondary); }
   .stat strong { color: var(--color-text-primary); }
+  .profile-indicator { font-size: 11px; display: flex; align-items: center; gap: 4px; color: var(--color-text-secondary); cursor: pointer; padding: 2px 8px; border-radius: 6px; border: 0.5px solid var(--color-border-tertiary); background: var(--color-background-primary); margin-left: auto; }
+  .profile-indicator:hover { border-color: #534AB7; color: #534AB7; }
   .xp-bar { flex: 1; height: 6px; background: var(--color-background-primary); border-radius: 3px; overflow: hidden; border: 0.5px solid var(--color-border-tertiary); }
   .xp-fill { height: 100%; border-radius: 3px; transition: width 0.5s; background: #534AB7; }
   .nav { display: flex; gap: 4px; padding: 12px 20px 0; border-bottom: 0.5px solid var(--color-border-tertiary); }
@@ -330,6 +332,16 @@
       </div>
     </div>
     <div class="sidebar-section" style="flex:1">
+      <div class="sidebar-title">学习档案</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;padding:0 16px 8px" id="profile-btns">
+        <button class="profile-btn" data-id="child" onclick="selectProfile('child')" style="font-size:11px;padding:3px 8px;border-radius:6px;border:0.5px solid var(--color-border-tertiary);background:none;color:var(--color-text-secondary);cursor:pointer;font-family:var(--font-sans)">🧒 儿童</button>
+        <button class="profile-btn" data-id="teen" onclick="selectProfile('teen')" style="font-size:11px;padding:3px 8px;border-radius:6px;border:0.5px solid var(--color-border-tertiary);background:none;color:var(--color-text-secondary);cursor:pointer;font-family:var(--font-sans)">🧑 青少年</button>
+        <button class="profile-btn" data-id="adult" onclick="selectProfile('adult')" style="font-size:11px;padding:3px 8px;border-radius:6px;border:0.5px solid var(--color-border-tertiary);background:none;color:var(--color-text-secondary);cursor:pointer;font-family:var(--font-sans)">👨 成年人</button>
+        <button class="profile-btn" data-id="senior" onclick="selectProfile('senior')" style="font-size:11px;padding:3px 8px;border-radius:6px;border:0.5px solid var(--color-border-tertiary);background:none;color:var(--color-text-secondary);cursor:pointer;font-family:var(--font-sans)">👴 中老年</button>
+        <button class="profile-btn" data-id="business" onclick="selectProfile('business')" style="font-size:11px;padding:3px 8px;border-radius:6px;border:0.5px solid var(--color-border-tertiary);background:none;color:var(--color-text-secondary);cursor:pointer;font-family:var(--font-sans)">💼 商务</button>
+        <button class="profile-btn" data-id="traveler" onclick="selectProfile('traveler')" style="font-size:11px;padding:3px 8px;border-radius:6px;border:0.5px solid var(--color-border-tertiary);background:none;color:var(--color-text-secondary);cursor:pointer;font-family:var(--font-sans)">✈️ 旅行</button>
+      </div>
+      <div id="profile-desc" style="font-size:10px;color:var(--color-text-secondary);padding:0 16px 8px;display:none"></div>
       <div class="sidebar-title">导航</div>
       <div class="sidebar-nav-row" onclick="closeSidebar();showPanel('home')"><i class="ti ti-home" style="font-size:16px;color:#534AB7" aria-hidden="true"></i> 主页</div>
       <div class="sidebar-nav-row" onclick="closeSidebar();showPanel('listen');beginListen()"><i class="ti ti-volume" style="font-size:16px;color:#185FA5" aria-hidden="true"></i> 听读模式</div>
@@ -352,6 +364,7 @@
     <div style="display:flex;align-items:center;gap:8px">
       <span class="streak-fire"><i class="ti ti-flame" aria-hidden="true"></i> <span id="streak-hdr">0</span></span>
       <span class="level-badge"><i class="ti ti-trophy" aria-hidden="true"></i> Lv.<span id="level-hdr">1</span></span>
+      <span class="profile-indicator" onclick="toggleSidebar()" title="切换学习档案" id="profile-indicator"><span id="profile-badge-icon">👤</span> <span id="profile-indicator-label">成年人</span></span>
     </div>
   </div>
 
@@ -675,10 +688,157 @@ const WORDS = {
 const ALL_WORDS = Object.entries(WORDS).flatMap(([cat,d]) => d.words.map(w => ({...w,cat})));
 const CORE_VERBS = new Set(["come","get","give","go","keep","let","make","put","seem","take","be","do","have","say","see","send","may","will"]);
 const PREPOSITIONS = new Set(["about","across","after","against","among","at","before","between","by","down","from","in","off","on","out","over","past","through","till","to","under","up","with","as","for","of"]);
-const SLEEP_GROUPS = (() => {
+
+// ======= 智能学习排序 =======
+// 上下文标签 — 用关键词匹配每个词的英文和中文释义
+const CONTEXT_KEYWORDS = {
+  work:   { en: /account|business|company|manager|office|factory|industry|trade|market|bank|employ|salary|wage|income|tax|insurance|contract|committee|meeting|report|authority|director|secretary/i,
+            zh: /工作|生意|公司|办公室|工厂|行业|贸易|市场|银行|雇佣|工资|收入|税收|保险|合同|委员会|会议|报告|权威|经理|秘书|职业/i },
+  money:  { en: /account|money|credit|debt|payment|interest|rate|price|cost|value|profit|loss|income|tax|insurance|bank|trade|market|business|amount|bit|bill|pay|rich|poor|save|spend|charge|cheap|expensive/i,
+            zh: /钱|账户|信用|债务|支付|利息|价格|成本|价值|利润|收入|税收|银行|贸易|交易|金额|便宜|贵|支付|花费/i },
+  health: { en: /body|head|heart|blood|bone|brain|breath|chest|chin|ear|eye|face|finger|foot|hair|hand|head|knee|leg|lip|mouth|neck|nose|shoulder|skin|stomach|thumb|toe|tongue|tooth|wrist|ill|sick|pain|ache|disease|health|cough|sleep|awake|dead|death|medical|hospital|medicine|doctor|nurse|operation|recovery|cold|fever|fat|thin|strong|weak|clean|dirty/i,
+            zh: /身体|头|心|血|骨头|脑|呼吸|胸|下巴|耳朵|眼睛|脸|手指|脚|头发|手|膝盖|腿|嘴|脖子|鼻子|肩膀|皮肤|胃|生病|痛|疾病|健康|咳嗽|睡眠|清醒|死|医疗|医院|药|医生|护士|手术|恢复|感冒|发烧|胖|瘦|强壮|虚弱|干净|脏/i },
+  travel: { en: /air|boat|bridge|bus|car|carriage|cart|cloud|coast|country|direction|distance|driving|east|engine|flag|flight|fog|foot|foreign|gate|harbor|hill|island|journey|land|map|mountain|north|ocean|path|plane|platform|port|railway|road|route|sea|ship|south|station|steam|street|tour|train|travel|trip|valley|vehicle|village|voyage|way|weather|west|wheel|wind|window/i,
+            zh: /旅行|旅游|飞机|船|汽车|桥|公交车|方向|距离|驾驶|东|引擎|旗帜|飞行|雾|脚|国外|大门|港口|山|岛|旅程|陆地|地图|山|北|海洋|路径|飞机|月台|铁路|路|海|南|车站|街|蒸汽|火车|旅游|旅行|山谷|车辆|村庄|航行|天气|西|轮子|风|窗/i },
+  school: { en: /book|class|course|education|exam|learn|lesson|letter|library|mark|note|page|paper|pen|pencil|question|read|school|science|study|subject|teach|test|word|write|answer|knowledge/i,
+            zh: /书|班级|课程|教育|考试|学习|课|字母|图书馆|分数|笔记|页|纸|笔|铅笔|问题|读|学校|科学|研究|科目|教|测试|词|写|答案|知识/i },
+  home:   { en: /bed|blanket|bottle|box|brush|bucket|button|cake|candle|chair|clock|cloth|comb|container|cook|cup|curtain|cushion|door|drawer|dress|droplet|fork|furniture|glass|house|key|kitchen|lamp|lock|mat|mirror|pan|plate|pot|room|sofa|sponge|spoon|stove|table|tap|towel|tub|vase|wall|window/i,
+            zh: /家|床|毯子|瓶子|盒子|刷子|桶|按钮|蛋糕|蜡烛|椅子|钟|布|梳子|容器|烹饪|杯子|窗帘|垫子|门|抽屉|连衣裙|叉子|玻璃|房子|钥匙|厨房|灯|锁|垫|镜子|锅|盘子|房间|沙发|海绵|勺子|炉子|桌子|毛巾|花瓶|墙|窗/i },
+  nature: { en: /air|animal|ant|apple|berry|bird|branch|bush|butter|cattle|cloud|coast|country|cow|crop|crow|desert|dog|donkey|duck|dust|earth|egg|farm|farmer|feather|field|fish|flower|fly|fog|food|forest|fruit|garden|goat|gold|grain|grape|grass|ground|grow|hen|hill|horse|insect|iron|island|lamb|land|leaf|leather|lightning|meal|meat|milk|moon|mountain|mud|nest|nut|ocean|oil|orange|owl|ox|pig|plant|plough|rain|river|rock|root|salt|sand|seed|sheep|silver|sky|smoke|snake|snow|soil|star|stick|stone|storm|sun|swamp|tin|tree|valley|vegetable|water|weather|weed|wheat|wind|wine|wing|wood|wool|worm/i,
+            zh: /自然|动物|蚂蚁|苹果|浆果|鸟|树枝|灌木|蝴蝶|牛|云|海岸|国家|母牛|庄稼|乌鸦|沙漠|狗|驴|鸭子|灰尘|地球|蛋|农场|农民|羽毛|田地|鱼|花|苍蝇|雾|食物|森林|水果|花园|山羊|金子|谷物|葡萄|草|地面|母鸡|山|马|昆虫|铁|岛|羊羔|土地|叶子|皮革|闪电|餐|肉|奶|月亮|山|泥|巢|坚果|海洋|油|橙子|猫头鹰|牛|猪|植物|犁|雨|河|岩石|根|盐|沙|种子|羊|银|天空|烟|蛇|雪|土壤|星|棍子|石头|风暴|太阳|沼泽|锡|树|山谷|蔬菜|水|天气|杂草|小麦|风|酒|翅膀|木|羊毛|虫/i },
+  social: { en: /friend|family|mother|father|brother|sister|baby|child|boy|girl|man|woman|people|person|love|hate|angry|happy|sad|afraid|courage|cry|dance|fun|game|greeting|group|guest|host|hug|invite|joy|laugh|marry|meeting|party|play|polite|respect|sing|smile|sorry|thank|welcome|kiss|dear|kind|pleasure|shame/i,
+            zh: /朋友|家人|妈妈|爸爸|兄弟|姐妹|婴儿|孩子|男孩|女孩|男人|女人|人|爱|恨|生气|快乐|悲伤|害怕|勇气|哭|跳舞|乐趣|游戏|问候|群体|客人|主人|拥抱|邀请|喜悦|笑|结婚|聚会|玩|礼貌|尊重|唱|微笑|对不起|谢谢|欢迎|吻|亲爱的|友善|愉快|羞耻/i },
+  tech:   { en: /apparatus|automatic|battery|bell|button|camera|cell|circuit|clock|computer|digital|electric|engine|instrument|iron|key|knife|lamp|machine|magnet|metal|motor|network|phone|plug|radio|railway|robot|screen|signal|steam|switch|telephone|tool|tube|wheel|wire/i,
+            zh: /仪器|自动|电池|铃|按钮|相机|细胞|电路|钟|电脑|数字|电|引擎|乐器|铁|钥匙|刀|灯|机器|磁铁|金属|马达|网络|电话|插头|收音机|铁路|机器人|屏幕|信号|蒸汽|开关|工具|管|轮子|电线/i },
+  daily:  { en: /./, zh: /./ }, // 所有词默认都有 daily tag
+};
+
+// 计算每个词的话题标签
+function tagWord(w) {
+  const tags = new Set(['daily']);
+  for (const [ctx, kw] of Object.entries(CONTEXT_KEYWORDS)) {
+    if (ctx === 'daily') continue;
+    if (kw.en.test(w.w) || kw.zh.test(w.m)) tags.add(ctx);
+  }
+  return tags;
+}
+
+// 学习档案 — 各年龄/场景对话题权重
+const PROFILES = {
+  child:   { label:'儿童 (5-12)', desc:'日常游戏、家庭、动物、食物',
+             weights: { daily:5, home:5, nature:5, social:4, school:3, travel:1, health:1, work:0, money:0, tech:0 },
+             catOrder: ['pic','ops','qual','things'] },
+  teen:    { label:'青少年 (13-19)', desc:'校园生活、社交、科技',
+             weights: { daily:5, school:5, social:5, tech:4, nature:3, home:2, health:1, travel:1, work:0, money:0 },
+             catOrder: ['ops','qual','things','pic'] },
+  adult:   { label:'成年人 (20-40)', desc:'工作职场、日常生活、社交',
+             weights: { daily:5, work:5, money:4, social:4, travel:3, health:3, home:2, school:1, tech:1, nature:1 },
+             catOrder: ['ops','things','qual','pic'] },
+  senior:  { label:'中老年 (40+)', desc:'健康、家庭、日常生活',
+             weights: { daily:5, health:5, home:4, nature:3, social:3, travel:2, money:1, work:0, school:0, tech:0 },
+             catOrder: ['ops','things','qual','pic'] },
+  business:{ label:'商务人士', desc:'商务英语、金融、会议',
+             weights: { work:5, money:5, social:4, daily:4, travel:3, tech:2, health:1, home:1, nature:0, school:0 },
+             catOrder: ['ops','things','qual','pic'] },
+  traveler:{ label:'旅行爱好者', desc:'旅行会话、交通、住宿',
+             weights: { travel:5, daily:5, social:4, money:3, work:2, nature:2, health:2, home:1, tech:0, school:0 },
+             catOrder: ['ops','things','pic','qual'] },
+};
+
+let userProfile = null;
+
+function loadProfile() {
+  const saved = localStorage.getItem('ogden-profile');
+  if (saved) {
+    userProfile = JSON.parse(saved);
+  } else {
+    userProfile = { id: 'adult', name: '成年人 (20-40)' };
+  }
+}
+
+function setProfile(profileId) {
+  const p = PROFILES[profileId];
+  if (!p) return;
+  userProfile = { id: profileId, name: p.label };
+  localStorage.setItem('ogden-profile', JSON.stringify(userProfile));
+  // 重新排序学习列表
+  buildPriorityWords();
+  rebuildSleepGroups();
+  updateProfileUI();
+}
+
+function getPriorityScore(word) {
+  if (!userProfile || !PROFILES[userProfile.id]) return 0;
+  const p = PROFILES[userProfile.id];
+  const tags = tagWord(word);
+  let score = 0;
+  for (const [ctx, w] of Object.entries(p.weights)) {
+    if (tags.has(ctx)) score += w;
+  }
+  return score;
+}
+
+let PRIORITY_WORDS = [];
+
+function buildPriorityWords() {
+  const scored = ALL_WORDS.map(w => ({
+    ...w,
+    score: getPriorityScore(w),
+    catScore: userProfile && PROFILES[userProfile.id]
+      ? (100 - PROFILES[userProfile.id].catOrder.indexOf(w.cat) * 20)
+      : 50
+  }));
+  // 按 分数降序 → 分类顺序 → 原顺序 排列
+  const catOrder = userProfile && PROFILES[userProfile.id]
+    ? PROFILES[userProfile.id].catOrder : ['ops','things','pic','qual'];
+  PRIORITY_WORDS = scored.sort((a, b) => {
+    // 先按分数
+    if (b.score !== a.score) return b.score - a.score;
+    // 再按分类优先级
+    const ca = catOrder.indexOf(a.cat), cb = catOrder.indexOf(b.cat);
+    if (ca !== cb) return ca - cb;
+    // 最后保持原顺序
+    return 0;
+  });
+}
+
+function rebuildSleepGroups() {
   const SIZE = 85;
-  return Array.from({length:10}, (_,i) => ALL_WORDS.slice(i*SIZE, (i+1)*SIZE));
-})();
+  const pool = [...PRIORITY_WORDS];
+  SLEEP_GROUPS.length = 0;
+  for (let i = 0; i < 10; i++) {
+    SLEEP_GROUPS.push(pool.slice(i * SIZE, (i + 1) * SIZE));
+  }
+}
+
+function updateProfileUI() {
+  if (!userProfile) return;
+  const desc = document.getElementById('profile-desc');
+  const p = PROFILES[userProfile.id];
+  if (p) {
+    desc.textContent = p.desc;
+    desc.style.display = 'block';
+  }
+  // 更新头部指示器
+  const indicatorLabel = document.getElementById('profile-indicator-label');
+  if (indicatorLabel) indicatorLabel.textContent = userProfile.name;
+  const iconMap = { child:'🧒', teen:'🧑', adult:'👨', senior:'👴', business:'💼', traveler:'✈️' };
+  const icon = document.getElementById('profile-badge-icon');
+  if (icon) icon.textContent = iconMap[userProfile.id] || '👤';
+  // 高亮选中的按钮
+  document.querySelectorAll('.profile-btn').forEach(btn => {
+    const isActive = btn.dataset.id === userProfile.id;
+    btn.style.background = isActive ? '#534AB7' : 'none';
+    btn.style.color = isActive ? '#fff' : 'var(--color-text-secondary)';
+    btn.style.borderColor = isActive ? '#534AB7' : 'var(--color-border-tertiary)';
+  });
+}
+
+function selectProfile(profileId) {
+  setProfile(profileId);
+}
+
+const SLEEP_GROUPS = [];
 
 let state = {
   xp:0, level:1, streak:0, mastered:{}, learned:{},
@@ -879,7 +1039,22 @@ function initTheme() {
 // ======= HELPERS =======
 function shuffle(arr) { return [...arr].sort(() => Math.random()-0.5); }
 function pick(arr, n) { return shuffle(arr).slice(0,n); }
-function getPool(cat) { return cat==='all' ? ALL_WORDS : (WORDS[cat]?.words.map(w=>({...w,cat})) || ALL_WORDS); }
+function getPool(cat) { return cat==='all' ? (PRIORITY_WORDS.length ? PRIORITY_WORDS : ALL_WORDS) : (WORDS[cat]?.words.map(w=>({...w,cat})) || ALL_WORDS); }
+
+// 从优先列表或全列表中获取 n 个词（优先用靠前的词）
+function getPriorityPool(n, cat) {
+  let pool;
+  if (cat && cat !== 'all') {
+    pool = WORDS[cat]?.words.map(w => ({...w, cat})) || ALL_WORDS;
+  } else if (PRIORITY_WORDS.length) {
+    pool = PRIORITY_WORDS;
+  } else {
+    pool = ALL_WORDS;
+  }
+  // 取前 n 个（优先高分的），然后打乱
+  const top = pool.slice(0, Math.min(n * 2, pool.length));
+  return shuffle(top).slice(0, n);
+}
 
 function showPanel(id) {
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
@@ -934,7 +1109,7 @@ function startSpell() { showPanel('spell'); }
 
 // ======= LISTEN MODE =======
 function beginListen() {
-  state.listenQ = shuffle(ALL_WORDS).slice(0,20);
+  state.listenQ = getPriorityPool(20, 'all');
   state.listenIdx = 0;
   document.getElementById('listen-start').classList.add('hidden');
   document.getElementById('listen-game').classList.remove('hidden');
@@ -996,7 +1171,11 @@ function showQuestion() {
   if (state.streak >= 2) { sEl.style.display='inline'; document.getElementById('q-streak-n').textContent=state.streak; }
   else { sEl.style.display='none'; }
 
-  const wrong3 = pick(ALL_WORDS.filter(w=>w.w!==q.w), 3);
+  const wrong3 = pick(PRIORITY_WORDS.length ? PRIORITY_WORDS : ALL_WORDS, 3).filter(w=>w.w!==q.w).slice(0,3);
+  while (wrong3.length < 3) { // fallback if filtering removed too many
+    const extra = pick(ALL_WORDS, 1);
+    if (extra[0] && extra[0].w !== q.w && !wrong3.find(w=>w.w===extra[0].w)) wrong3.push(extra[0]);
+  }
   const choices = shuffle([q,...wrong3]);
 
   document.getElementById('q-choices').innerHTML = choices.map(c =>
@@ -1335,6 +1514,10 @@ function sleepStop() {
 
 // ======= INIT =======
 initTheme();
+loadProfile();
+buildPriorityWords();
+rebuildSleepGroups();
+updateProfileUI();
 buildCatGrid();
 updateStats();
 initTTS();
