@@ -296,6 +296,18 @@
       <span>设置</span>
       <button class="sidebar-close" onclick="closeSidebar()">✕</button>
     </div>
+    <!-- 导航置顶 -->
+    <div class="sidebar-section" style="flex:1">
+      <div class="sidebar-title">导航</div>
+      <div class="sidebar-nav-row" onclick="closeSidebar();showPanel('home')"><i class="ti ti-home" style="font-size:16px;color:#534AB7" aria-hidden="true"></i> 主页</div>
+      <div class="sidebar-nav-row" onclick="closeSidebar();showPanel('listen');beginListen()"><i class="ti ti-volume" style="font-size:16px;color:#185FA5" aria-hidden="true"></i> 听读模式</div>
+      <div class="sidebar-nav-row" onclick="closeSidebar();startQuiz()"><i class="ti ti-axe" style="font-size:16px;color:#534AB7" aria-hidden="true"></i> 选词闯关</div>
+      <div class="sidebar-nav-row" onclick="closeSidebar();startFlash()"><i class="ti ti-cards" style="font-size:16px;color:#0F6E56" aria-hidden="true"></i> 闪卡记忆</div>
+      <div class="sidebar-nav-row" onclick="closeSidebar();startSpell()"><i class="ti ti-keyboard" style="font-size:16px;color:#993C1D" aria-hidden="true"></i> 拼写挑战</div>
+      <div class="sidebar-nav-row" onclick="closeSidebar();showPanel('sleep')"><i class="ti ti-moon" style="font-size:16px;color:#3C3489" aria-hidden="true"></i> 睡眠聆听</div>
+      <div class="sidebar-nav-row" onclick="closeSidebar();showPanel('map')"><i class="ti ti-map" style="font-size:16px;color:#0F6E56" aria-hidden="true"></i> 词汇地图</div>
+    </div>
+    <!-- 设置放下方 -->
     <div class="sidebar-section">
       <div class="sidebar-title">学习进度</div>
       <div class="sidebar-stat-row"><i class="ti ti-star" aria-hidden="true"></i> <strong><span id="xp">0</span></strong> XP</div>
@@ -334,15 +346,9 @@
         </select>
       </div>
     </div>
-    <div class="sidebar-section" style="padding:8px 16px">
-      <div class="sidebar-toggle-row" style="margin:0">
-        <span style="display:flex;align-items:center;gap:6px"><i class="ti ti-sun" id="theme-icon" aria-hidden="true"></i> 白天/夜间</span>
-        <div class="sidebar-auto-toggle" id="theme-toggle" onclick="toggleTheme()"></div>
-      </div>
-    </div>
-    <div class="sidebar-section" style="flex:1">
+    <div class="sidebar-section">
       <div class="sidebar-title">学习档案</div>
-      <div style="display:flex;flex-wrap:wrap;gap:4px;padding:0 16px 8px" id="profile-btns">
+      <div style="display:flex;flex-wrap:wrap;gap:4px;padding:0 0 8px" id="profile-btns">
         <button class="profile-btn" data-id="child" onclick="selectProfile('child')" style="font-size:11px;padding:3px 8px;border-radius:6px;border:0.5px solid var(--color-border-tertiary);background:none;color:var(--color-text-secondary);cursor:pointer;font-family:var(--font-sans)">🧒 儿童</button>
         <button class="profile-btn" data-id="teen" onclick="selectProfile('teen')" style="font-size:11px;padding:3px 8px;border-radius:6px;border:0.5px solid var(--color-border-tertiary);background:none;color:var(--color-text-secondary);cursor:pointer;font-family:var(--font-sans)">🧑 青少年</button>
         <button class="profile-btn" data-id="adult" onclick="selectProfile('adult')" style="font-size:11px;padding:3px 8px;border-radius:6px;border:0.5px solid var(--color-border-tertiary);background:none;color:var(--color-text-secondary);cursor:pointer;font-family:var(--font-sans)">👨 成年人</button>
@@ -350,19 +356,17 @@
         <button class="profile-btn" data-id="business" onclick="selectProfile('business')" style="font-size:11px;padding:3px 8px;border-radius:6px;border:0.5px solid var(--color-border-tertiary);background:none;color:var(--color-text-secondary);cursor:pointer;font-family:var(--font-sans)">💼 商务</button>
         <button class="profile-btn" data-id="traveler" onclick="selectProfile('traveler')" style="font-size:11px;padding:3px 8px;border-radius:6px;border:0.5px solid var(--color-border-tertiary);background:none;color:var(--color-text-secondary);cursor:pointer;font-family:var(--font-sans)">✈️ 旅行</button>
       </div>
-      <div id="profile-desc" style="font-size:10px;color:var(--color-text-secondary);padding:0 16px 8px;display:none"></div>
-      <div id="weight-sliders" style="padding:0 16px 8px;display:none">
+      <div id="profile-desc" style="font-size:10px;color:var(--color-text-secondary);padding:0 0 8px;display:none"></div>
+      <div id="weight-sliders" style="padding:0 0 8px;display:none">
         <div style="font-size:10px;color:var(--color-text-secondary);margin-bottom:4px;letter-spacing:0.5px">✏️ 微調權重</div>
         <div id="slider-list" style="display:flex;flex-direction:column;gap:3px"></div>
       </div>
-      <div class="sidebar-title">导航</div>
-      <div class="sidebar-nav-row" onclick="closeSidebar();showPanel('home')"><i class="ti ti-home" style="font-size:16px;color:#534AB7" aria-hidden="true"></i> 主页</div>
-      <div class="sidebar-nav-row" onclick="closeSidebar();showPanel('listen');beginListen()"><i class="ti ti-volume" style="font-size:16px;color:#185FA5" aria-hidden="true"></i> 听读模式</div>
-      <div class="sidebar-nav-row" onclick="closeSidebar();startQuiz()"><i class="ti ti-axe" style="font-size:16px;color:#534AB7" aria-hidden="true"></i> 选词闯关</div>
-      <div class="sidebar-nav-row" onclick="closeSidebar();startFlash()"><i class="ti ti-cards" style="font-size:16px;color:#0F6E56" aria-hidden="true"></i> 闪卡记忆</div>
-      <div class="sidebar-nav-row" onclick="closeSidebar();startSpell()"><i class="ti ti-keyboard" style="font-size:16px;color:#993C1D" aria-hidden="true"></i> 拼写挑战</div>
-      <div class="sidebar-nav-row" onclick="closeSidebar();showPanel('sleep')"><i class="ti ti-moon" style="font-size:16px;color:#3C3489" aria-hidden="true"></i> 睡眠聆听</div>
-      <div class="sidebar-nav-row" onclick="closeSidebar();showPanel('map')"><i class="ti ti-map" style="font-size:16px;color:#0F6E56" aria-hidden="true"></i> 词汇地图</div>
+    </div>
+    <div class="sidebar-section" style="padding:8px 16px">
+      <div class="sidebar-toggle-row" style="margin:0">
+        <span style="display:flex;align-items:center;gap:6px"><i class="ti ti-sun" id="theme-icon" aria-hidden="true"></i> 白天/夜间</span>
+        <div class="sidebar-auto-toggle" id="theme-toggle" onclick="toggleTheme()"></div>
+      </div>
     </div>
   </div>
 
