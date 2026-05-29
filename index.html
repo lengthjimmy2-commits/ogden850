@@ -50,8 +50,8 @@
   * { box-sizing: border-box; margin: 0; padding: 0; }
   .app { min-height: 600px; background: var(--color-background-primary); font-family: var(--font-sans); }
   .header { background: var(--color-background-secondary); border-bottom: 1px solid var(--color-border-primary); padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; }
-  .header h1 { font-size: 14px; font-weight: 600; color: var(--color-text-primary); letter-spacing: 0.5px; display: inline; }
-  .header-sub { font-size: 14px; color: var(--color-text-primary); display: inline; }
+  .header-title { font-size: 11px; font-weight: 600; color: var(--color-text-primary); letter-spacing: 0.3px; line-height: 1.3; }
+  .header-sub { font-size: 10px; color: var(--color-text-secondary); line-height: 1.3; }
   .stats-bar { display: flex; gap: 16px; padding: 10px 20px; background: var(--color-background-secondary); border-bottom: 1px solid var(--color-border-primary); font-size: 13px; align-items: center; }
   .stat { display: flex; align-items: center; gap: 6px; color: var(--color-text-secondary); }
   .stat strong { color: var(--color-text-primary); }
@@ -240,8 +240,8 @@
     .phonetic-hint { font-size: 24px; }
     .level-badge { font-size: 20px; }
     .streak-fire { font-size: 20px; }
-    .header h1 { font-size: 18px; display: inline; color: var(--color-text-primary); }
-    .header-sub { font-size: 18px; display: inline; color: var(--color-text-primary); }
+    .header-title { font-size: 16px; line-height: 1.3; }
+    .header-sub { font-size: 14px; line-height: 1.3; }
     .sidebar-nav-row { font-size: 20px; padding: 16px 0; }
     .sidebar-nav-row i { font-size: 28px !important; }
   }
@@ -365,14 +365,16 @@
   <!-- HEADER -->
   <div class="header">
     <button class="hamburger" onclick="toggleSidebar()">☰</button>
-    <div style="text-align:center;flex:1">
-      <h1>Ogden 850</h1>
-      <div class="header-sub">学英语</div>
-    </div>
-    <div style="display:flex;align-items:center;gap:8px">
-      <span class="streak-fire"><i class="ti ti-flame" aria-hidden="true"></i> <span id="streak-hdr">0</span></span>
-      <span class="level-badge"><i class="ti ti-trophy" aria-hidden="true"></i> Lv.<span id="level-hdr">1</span></span>
-      <span class="profile-indicator" onclick="toggleSidebar()" title="切换学习档案" id="profile-indicator"><span id="profile-badge-icon">👤</span> <span id="profile-indicator-label">成年人</span></span>
+    <div style="display:flex;align-items:flex-end;justify-content:flex-end;flex:1;gap:8px">
+      <div style="text-align:right;margin-right:8px">
+        <div class="header-title">Ogden 850</div>
+        <div class="header-sub">学英语</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="streak-fire"><i class="ti ti-flame" aria-hidden="true"></i> <span id="streak-hdr">0</span></span>
+        <span class="level-badge"><i class="ti ti-trophy" aria-hidden="true"></i> Lv.<span id="level-hdr">1</span></span>
+        <span class="profile-indicator" onclick="toggleSidebar()" title="切换学习档案" id="profile-indicator"><span id="profile-badge-icon">👤</span> <span id="profile-indicator-label">成年人</span></span>
+      </div>
     </div>
   </div>
 
