@@ -351,6 +351,10 @@
         <button class="profile-btn" data-id="traveler" onclick="selectProfile('traveler')" style="font-size:11px;padding:3px 8px;border-radius:6px;border:0.5px solid var(--color-border-tertiary);background:none;color:var(--color-text-secondary);cursor:pointer;font-family:var(--font-sans)">✈️ 旅行</button>
       </div>
       <div id="profile-desc" style="font-size:10px;color:var(--color-text-secondary);padding:0 16px 8px;display:none"></div>
+      <div id="weight-sliders" style="padding:0 16px 8px;display:none">
+        <div style="font-size:10px;color:var(--color-text-secondary);margin-bottom:4px;letter-spacing:0.5px">✏️ 微調權重</div>
+        <div id="slider-list" style="display:flex;flex-direction:column;gap:3px"></div>
+      </div>
       <div class="sidebar-title">导航</div>
       <div class="sidebar-nav-row" onclick="closeSidebar();showPanel('home')"><i class="ti ti-home" style="font-size:16px;color:#534AB7" aria-hidden="true"></i> 主页</div>
       <div class="sidebar-nav-row" onclick="closeSidebar();showPanel('listen');beginListen()"><i class="ti ti-volume" style="font-size:16px;color:#185FA5" aria-hidden="true"></i> 听读模式</div>
@@ -770,6 +774,8 @@ function setProfile(profileId) {
   if (!p) return;
   userProfile = { id: profileId, name: p.label };
   localStorage.setItem('ogden-profile', JSON.stringify(userProfile));
+  // 同步滑桿到 preset
+  syncSlidersToProfile(p.weights);
   // 重新排序学习列表
   buildPriorityWords();
   rebuildSleepGroups();
@@ -777,14 +783,75 @@ function setProfile(profileId) {
 }
 
 function getPriorityScore(word) {
-  if (!userProfile || !PROFILES[userProfile.id]) return 0;
-  const p = PROFILES[userProfile.id];
+  const weights = customWeights || (userProfile && PROFILES[userProfile.id]?.weights);
+  if (!weights) return 0;
   const tags = tagWord(word);
   let score = 0;
-  for (const [ctx, w] of Object.entries(p.weights)) {
+  for (const [ctx, w] of Object.entries(weights)) {
     if (tags.has(ctx)) score += w;
   }
   return score;
+}
+
+// ======= 滑桿微調權重 =======
+const CONTEXT_LABELS = {
+  daily:'日常', work:'工作', money:'金錢', health:'健康',
+  travel:'旅行', school:'學校', home:'居家', nature:'自然',
+  social:'社交', tech:'科技'
+};
+let customWeights = null;
+let sliderInitialized = false;
+
+function buildSliders(weights) {
+  const container = document.getElementById('slider-list');
+  if (!container) return;
+  container.innerHTML = Object.entries(weights).map(([key, val]) =>
+    `<div style="display:flex;align-items:center;gap:4px">
+      <span style="font-size:10px;color:var(--color-text-secondary);min-width:28px">${CONTEXT_LABELS[key]||key}</span>
+      <input type="range" min="0" max="5" step="1" value="${val}"
+        id="slider-${key}"
+        oninput="onWeightChange(this,'${key}')"
+        style="flex:1;height:3px;accent-color:var(--card-accent-coral)">
+      <span style="font-size:9px;color:var(--color-text-secondary);min-width:12px;text-align:right" id="sv-${key}">${val}</span>
+    </div>`
+  ).join('');
+  sliderInitialized = true;
+}
+
+function syncSlidersToProfile(weights) {
+  if (!sliderInitialized) {
+    buildSliders(weights);
+  } else {
+    for (const [key, val] of Object.entries(weights)) {
+      const slider = document.getElementById('slider-' + key);
+      if (slider) { slider.value = val; document.getElementById('sv-'+key).textContent = val; }
+    }
+  }
+  document.getElementById('weight-sliders').style.display = 'block';
+  customWeights = null;
+}
+
+function onWeightChange(el, key) {
+  const val = parseInt(el.value);
+  document.getElementById('sv-' + key).textContent = val;
+  // 進入自定義模式
+  if (!customWeights) {
+    // 讀取當前滑桿值
+    customWeights = {};
+    for (const k of Object.keys(CONTEXT_LABELS)) {
+      const s = document.getElementById('slider-' + k);
+      if (s) customWeights[k] = parseInt(s.value);
+    }
+    userProfile = { id: 'custom', name: '自定義' };
+    localStorage.setItem('ogden-profile', JSON.stringify(userProfile));
+    updateProfileUI();
+  } else {
+    customWeights[key] = val;
+  }
+  // 重新排序
+  buildPriorityWords();
+  rebuildSleepGroups();
+  updateProfileUI();
 }
 
 let PRIORITY_WORDS = [];
@@ -793,12 +860,14 @@ function buildPriorityWords() {
   const scored = ALL_WORDS.map(w => ({
     ...w,
     score: getPriorityScore(w),
-    catScore: userProfile && PROFILES[userProfile.id]
-      ? (100 - PROFILES[userProfile.id].catOrder.indexOf(w.cat) * 20)
-      : 50
+    catScore: customWeights
+      ? 50 // 自定义模式不按分类排序
+      : userProfile && PROFILES[userProfile.id]
+        ? (100 - PROFILES[userProfile.id].catOrder.indexOf(w.cat) * 20)
+        : 50
   }));
   // 按 分数降序 → 分类顺序 → 原顺序 排列
-  const catOrder = userProfile && PROFILES[userProfile.id]
+  const catOrder = !customWeights && userProfile && PROFILES[userProfile.id]
     ? PROFILES[userProfile.id].catOrder : ['ops','things','pic','qual'];
   PRIORITY_WORDS = scored.sort((a, b) => {
     // 先按分数
@@ -828,19 +897,26 @@ function updateProfileUI() {
   if (p) {
     desc.textContent = p.desc;
     desc.style.display = 'block';
+    // 显示滑桿（preset 模式）
+    if (sliderInitialized) document.getElementById('weight-sliders').style.display = 'block';
+  } else if (userProfile.id === 'custom') {
+    desc.textContent = '拖動滑桿自訂權重';
+    desc.style.display = 'block';
+  } else {
+    desc.style.display = 'none';
   }
   // 更新头部指示器
   const indicatorLabel = document.getElementById('profile-indicator-label');
   if (indicatorLabel) indicatorLabel.textContent = userProfile.name;
-  const iconMap = { child:'🧒', teen:'🧑', adult:'👨', senior:'👴', business:'💼', traveler:'✈️' };
+  const iconMap = { child:'🧒', teen:'🧑', adult:'👨', senior:'👴', business:'💼', traveler:'✈️', custom:'✏️' };
   const icon = document.getElementById('profile-badge-icon');
   if (icon) icon.textContent = iconMap[userProfile.id] || '👤';
   // 高亮选中的按钮
   document.querySelectorAll('.profile-btn').forEach(btn => {
     const isActive = btn.dataset.id === userProfile.id;
-    btn.style.background = isActive ? '#534AB7' : 'none';
+    btn.style.background = isActive ? 'var(--card-accent-coral)' : 'none';
     btn.style.color = isActive ? '#fff' : 'var(--color-text-secondary)';
-    btn.style.borderColor = isActive ? '#534AB7' : 'var(--color-border-tertiary)';
+    btn.style.borderColor = isActive ? 'var(--card-accent-coral)' : 'var(--color-border-tertiary)';
   });
 }
 
@@ -1548,6 +1624,10 @@ function sleepStop() {
 // ======= INIT =======
 initTheme();
 loadProfile();
+if (userProfile) {
+  const p = PROFILES[userProfile.id];
+  buildSliders(p ? p.weights : { daily:3, work:3, money:3, health:3, travel:3, school:3, home:3, nature:3, social:3, tech:3 });
+}
 buildPriorityWords();
 rebuildSleepGroups();
 updateProfileUI();
