@@ -1293,7 +1293,7 @@ function showQuestion() {
 
   document.getElementById('q-choices').innerHTML = choices.map(c =>
     `<button class="choice-btn" onclick="answer('${c.w}','${q.w}')">
-      <span>${c.w}</span>
+      <span>${renderPhonics(c.w)}</span>
       <span class="choice-speak" onclick="event.stopPropagation();speakWord('${c.w}')" title="听发音">
         <i class="ti ti-volume" aria-hidden="true"></i>
       </span>
@@ -1367,7 +1367,7 @@ function showFlash() {
   document.getElementById('f-progress').style.width = (state.flashIdx/state.flashQ.length*100)+'%';
   document.getElementById('f-num').textContent = (state.flashIdx+1)+' / '+state.flashQ.length;
   document.getElementById('fc-cat').textContent = WORDS[q.cat]?.label||q.cat;
-  document.getElementById('fc-word').textContent = q.w;
+  document.getElementById('fc-word').innerHTML = renderPhonics(q.w);
   document.getElementById('fc-meaning').textContent = q.m;
   const card = document.getElementById('flashcard');
   card.classList.remove('flipped');
@@ -1571,7 +1571,7 @@ function sleepNextWord() {
   }
   sleepState.repeat = 0;
   const w = g[sleepState.idx];
-  document.getElementById('sleep-word').textContent = w.w;
+  document.getElementById('sleep-word').innerHTML = renderPhonics(w.w);
   document.getElementById('sleep-meaning').textContent = w.m;
   document.getElementById('sleep-cur-word').textContent = sleepState.idx + 1;
   if ('mediaSession' in navigator) {
