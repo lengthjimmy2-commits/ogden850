@@ -1159,12 +1159,9 @@ function renderPhonics(word) {
     }
   }
   if (cur) segs.push(cur);
-  return segs.map((s, i) => {
-    const first = s[0];
-    const rest = s.slice(1);
-    return `<span style="color:${colors[i % colors.length]}">` +
-      `<span style="font-size:1.2em;font-weight:700">${first}</span>${rest}</span>`;
-  }).join('<span style="display:inline-block;width:4px"></span>');
+  return segs.map((s, i) =>
+    `<span style="color:${colors[i % colors.length]}">${s}</span>`
+  ).join('');
 }
 
 function listenRate(r) {
